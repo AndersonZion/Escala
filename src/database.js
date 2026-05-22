@@ -1,5 +1,3 @@
-//src/database.js
-
 import pkg from "pg";
 const { Pool } = pkg;
 import dotenv from "dotenv";
@@ -7,7 +5,6 @@ import bcrypt from "bcryptjs";
 
 dotenv.config();
 
-// Configuração do banco
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
   port: process.env.DB_PORT || 5432,
@@ -16,12 +13,13 @@ const pool = new Pool({
   database: process.env.DB_NAME || "vendas_online",
 });
 
-// Função para inicializar tabelas
 export async function initializeDatabase() {
   const client = await pool.connect();
 
   try {
-    // Criar tabela de usuários
+    console.log("🔃 Criando tabelas...");
+
+    // Tabela de usuários
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -33,7 +31,7 @@ export async function initializeDatabase() {
       )
     `);
 
-    // Criar tabela de funcionários
+    // Tabela de funcionários
     await client.query(`
       CREATE TABLE IF NOT EXISTS employees (
         id SERIAL PRIMARY KEY,
@@ -45,23 +43,12 @@ export async function initializeDatabase() {
         hire_date DATE,
         shift VARCHAR(20) DEFAULT 'day',
         status VARCHAR(20) DEFAULT 'active',
+        preference VARCHAR(20) DEFAULT 'both',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Criar tabela de escalas
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS schedules (
-        id SERIAL PRIMARY KEY,
-        date DATE NOT NULL,
-        employee_id INTEGER REFERENCES employees(id) ON DELETE CASCADE,
-        shift VARCHAR(10) NOT NULL,
-        notes TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Criar tabela de incompatibilidades
+    // Tabela de incompatibilidades
     await client.query(`
       CREATE TABLE IF NOT EXISTS incompatibilities (
         id SERIAL PRIMARY KEY,
@@ -72,19 +59,20 @@ export async function initializeDatabase() {
       )
     `);
 
-    // Criar tabela de grupos mensais
+    // Tabela de grupos fixos
     await client.query(`
-      CREATE TABLE IF NOT EXISTS monthly_groups (
+      CREATE TABLE IF NOT EXISTS fixed_groups (
         id SERIAL PRIMARY KEY,
-        year INTEGER NOT NULL,
-        month INTEGER NOT NULL,
-        groups_data JSONB NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(year, month)
+        group_order INTEGER NOT NULL,
+        employee1_id INTEGER REFERENCES employees(id) ON DELETE CASCADE,
+        employee2_id INTEGER REFERENCES employees(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Inserir usuário admin padrão
+    console.log("✅ Tabelas criadas");
+
+    // Inserir admin
     const adminExists = await client.query(
       "SELECT * FROM users WHERE email = $1",
       ["admin@exemplo.com"]
@@ -95,24 +83,12 @@ export async function initializeDatabase() {
         "INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)",
         ["Administrador", "admin@exemplo.com", hashedPassword, "admin"]
       );
+      console.log("✅ Admin criado");
     }
 
-    // Inserir usuário comum padrão
-    const userExists = await client.query(
-      "SELECT * FROM users WHERE email = $1",
-      ["usuario@exemplo.com"]
-    );
-    if (userExists.rows.length === 0) {
-      const hashedPassword = await bcrypt.hash("user123", 10);
-      await client.query(
-        "INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)",
-        ["Usuário Comum", "usuario@exemplo.com", hashedPassword, "user"]
-      );
-    }
-
-    // Inserir funcionários padrão
-    const employeesCount = await client.query("SELECT COUNT(*) FROM employees");
-    if (parseInt(employeesCount.rows[0].count) === 0) {
+    // Inserir funcionários
+    const empCount = await client.query("SELECT COUNT(*) FROM employees");
+    if (parseInt(empCount.rows[0].count) === 0) {
       const employees = [
         [
           "Bruno Silva",
@@ -123,6 +99,7 @@ export async function initializeDatabase() {
           "2023-01-15",
           "night",
           "active",
+          "friday",
         ],
         [
           "Samuel Santos",
@@ -133,6 +110,7 @@ export async function initializeDatabase() {
           "2023-03-20",
           "day",
           "active",
+          "saturday",
         ],
         [
           "Amadeu Oliveira",
@@ -143,16 +121,18 @@ export async function initializeDatabase() {
           "2022-08-10",
           "night",
           "active",
+          "both",
         ],
         [
-          "Ana Costa",
+          "Anderson Rocha",
           "Auxiliar",
-          "ana@exemplo.com",
+          "anderson@exemplo.com",
           "(11) 97654-3210",
           "Operações",
           "2024-01-05",
           "day",
           "active",
+          "both",
         ],
         [
           "Thor Lima",
@@ -163,47 +143,34 @@ export async function initializeDatabase() {
           "2022-01-10",
           "day",
           "active",
+          "friday",
         ],
         [
-          "Fernanda Rocha",
+          "Laise Costa",
           "Garçonete",
-          "fernanda@exemplo.com",
+          "laise@exemplo.com",
           "(11) 95432-1098",
           "Operações",
           "2023-06-15",
           "rotating",
           "active",
+          "saturday",
         ],
       ];
 
       for (const emp of employees) {
         await client.query(
-          `INSERT INTO employees (name, position, email, phone, department, hire_date, shift, status) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          `INSERT INTO employees (name, position, email, phone, department, hire_date, shift, status, preference) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           emp
         );
       }
+      console.log("✅ Funcionários criados");
     }
 
-    // Inserir incompatibilidade Samuel e Thor
-    const incompatExists = await client.query(
-      `SELECT * FROM incompatibilities WHERE (employee_id = 2 AND incompatible_with = 5) OR (employee_id = 5 AND incompatible_with = 2)`
-    );
-    if (incompatExists.rows.length === 0) {
-      await client.query(
-        "INSERT INTO incompatibilities (employee_id, incompatible_with) VALUES ($1, $2)",
-        [2, 5]
-      );
-      await client.query(
-        "INSERT INTO incompatibilities (employee_id, incompatible_with) VALUES ($1, $2)",
-        [5, 2]
-      );
-    }
-
-    console.log("✅ Banco de dados PostgreSQL inicializado!");
+    console.log("✅ Banco inicializado!");
   } catch (error) {
-    console.error("Erro ao inicializar banco:", error);
-    throw error;
+    console.error("❌ Erro:", error.message);
   } finally {
     client.release();
   }

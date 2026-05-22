@@ -10,7 +10,6 @@ router.post("/login", async (req, res) => {
   const db = getDb();
 
   try {
-    // PostgreSQL usa query com $1, $2...
     const result = await db.query("SELECT * FROM users WHERE email = $1", [
       email,
     ]);
@@ -20,8 +19,8 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
@@ -41,8 +40,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Erro no login:", error);
-    res.status(500).json({ error: "Erro ao fazer login" });
+    res.status(500).json({ error: "Erro no login" });
   }
 });
 
