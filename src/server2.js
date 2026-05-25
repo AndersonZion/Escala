@@ -1,32 +1,15 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
 import { initializeDatabase } from "./database.js";
 import authRoutes from "./routes/auth.js";
 import employeeRoutes from "./routes/employees.js";
 import incompatibilityRoutes from "./routes/incompatibilities.js";
 import fixedGroupsRoutes from "./routes/fixedGroups.js";
-import generateScheduleRoutes from "./routes/generateSchedule.js";
-import manualStartsRoutes from "./routes/manualStarts.js";
+import generateScheduleRoutes from "./routes/generateSchedule.js"; // ← ADICIONAR
+import manualStartsRoutes from "./routes/manualStarts.js"; // ← ADICIONAR
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// FORÇAR uso do .env.production para dev:prod
-if (process.env.NODE_ENV === "production") {
-  dotenv.config({ path: path.join(__dirname, "../.env.production") });
-  console.log("📦 Usando .env.production (Neon)");
-} else {
-  dotenv.config({ path: path.join(__dirname, "../.env") });
-  console.log("📦 Usando .env (Local)");
-}
-
-console.log(
-  "📦 DATABASE_URL:",
-  process.env.DATABASE_URL ? "Configurada" : "NÃO CONFIGURADA"
-);
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -42,8 +25,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/incompatibilities", incompatibilityRoutes);
 app.use("/api/fixed-groups", fixedGroupsRoutes);
-app.use("/api/generate-schedule", generateScheduleRoutes);
-app.use("/api/manual-starts", manualStartsRoutes);
+app.use("/api/generate-schedule", generateScheduleRoutes); // ← ADICIONAR
+app.use("/api/manual-starts", manualStartsRoutes); // ← ADICIONAR
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "API funcionando!" });
@@ -51,5 +34,4 @@ app.get("/api/health", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-  console.log(`🌍 Ambiente: ${process.env.NODE_ENV || "development"}`);
 });

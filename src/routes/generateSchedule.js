@@ -103,11 +103,9 @@ router.post(
       }
 
       if (groups.length === 0) {
-        return res
-          .status(400)
-          .json({
-            error: "Nenhum grupo fixo encontrado. Crie grupos primeiro.",
-          });
+        return res.status(400).json({
+          error: "Nenhum grupo fixo encontrado. Crie grupos primeiro.",
+        });
       }
 
       // 2. Buscar configuração manual
@@ -248,6 +246,27 @@ router.get("/:year/:month", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Erro ao buscar escala:", error);
     res.status(500).json({ error: "Erro ao buscar escala" });
+  }
+});
+
+// DELETE - Excluir escala do mês
+router.delete("/:year/:month", authenticateToken, isAdmin, async (req, res) => {
+  const db = getDb();
+  const { year, month } = req.params;
+
+  try {
+    const result = await db.query(
+      "DELETE FROM schedules WHERE EXTRACT(YEAR FROM date) = $1 AND EXTRACT(MONTH FROM date) = $2",
+      [year, month]
+    );
+
+    res.json({
+      message: `Escala de ${month}/${year} excluída com sucesso!`,
+      deletedCount: result.rowCount,
+    });
+  } catch (error) {
+    console.error("Erro ao excluir escala:", error);
+    res.status(500).json({ error: "Erro ao excluir escala" });
   }
 });
 
