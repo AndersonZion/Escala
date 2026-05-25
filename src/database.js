@@ -251,7 +251,7 @@ export async function initializeDatabase() {
   return pool;
 }
 
-// ⭐ EXPORTAÇÃO IMPORTANTE ⭐
+// EXPORTAÇÃO IMPORTANTE
 export function getDb() {
   return pool;
 }
